@@ -3512,6 +3512,7 @@ sub check_updates {
     $request{'whisker'}->{'ssl'}     = $ssl;
     $request{'whisker'}->{'uri'}     = $uri;
     $request{'whisker'}->{'timeout'} = 5;
+    $request{'User-Agent'} = "Nikto/$VARIABLES{'version'}";
 
     # Configure proxy if enabled
     if (length($CONFIGFILE{PROXYHOST}) && $CLI{'useproxy'}) {
