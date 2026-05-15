@@ -22,8 +22,11 @@ sub nikto_outdated {
     # If banner has nothing that can be a version... return
     if ($mark->{'banner'} !~ /(?:\d|\/|\.)/) { return; }
 
+    # Platform tags are not part of product/version (e.g. IIS "Microsoft-IIS/10.0 (Win64)")
+    $mark->{'banner'} =~ s/\s*\(Win64\)//gi;
+
     # If Apache, split on space...
-    elsif (   ($mark->{'banner'} =~ /apache/i)
+    if (   ($mark->{'banner'} =~ /apache/i)
            || (($mark->{'banner'} =~ /\s/) && ($mark->{'banner'} =~ /\//))) {
         foreach my $item (split(/ /, $mark->{'banner'})) {
             $mark->{'components'}->{$item} = 1;
@@ -54,7 +57,7 @@ sub nikto_outdated {
            && ($mark->{'banner'} =~ /\/.*\//)
            && ($mark->{'banner'} =~ /\(/)) {
 
-        # try converting () t spaces
+        # try converting () to spaces
         foreach my $item (split(/[\(\)]/, $mark->{'banner'})) {
             $mark->{'components'}->{$item} = 1;
         }
