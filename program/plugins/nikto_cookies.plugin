@@ -50,7 +50,7 @@ sub nikto_cookies_postfetch {
             add_vulnerability($mark,
                               $request->{'whisker'}->{'uri'}
                                 . ": Cookie $cname created without the httponly flag",
-                              "000137",
+                              "000029",
                               "https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies",
                               $request->{'whisker'}->{'method'},
                               $request->{'whisker'}->{'uri'},
