@@ -68,6 +68,10 @@ CHECKMETHODS=GET
 # auto          - automatically choose best available 
 LW_SSL_ENGINE=auto
 
+# Keep TLS connections alive across requests (reuse TCP+TLS session).
+# Enabled by default; set to 0 or use -nosslkeepalive to disable for misbehaving servers.
+# SSLKEEPALIVE=0
+
 # Number of failures before giving up
 # Set to 0 to disable entirely
 FAILURES=20

@@ -861,6 +861,7 @@ sub general_config {
                "nointeractive"    => \$CLI{'nointeractive'},
                "nolookup"         => \$CLI{'skiplookup'},
                "nossl"            => \$CLI{'nossl'},
+               "nosslkeepalive"   => \$CLI{'nosslkeepalive'},
                "Option=s"         => \@options,
                "output=s"         => \$CLI{'file'},
                "Pause=f"          => \$CLI{'pause'},
@@ -1303,6 +1304,12 @@ sub general_config {
     }
     else {
         nprint("- ***** RFIURL is not defined in nikto.conf--no RFI tests will run *****");
+    }
+
+    # SSL keep-alive: enabled by default; disable via -nosslkeepalive or SSLKEEPALIVE=0 in conf
+    if ($CLI{'nosslkeepalive'} ||
+        (defined $CONFIGFILE{'SSLKEEPALIVE'} && $CONFIGFILE{'SSLKEEPALIVE'} eq '0')) {
+        $LW2::LW_SSL_KEEPALIVE = 0;
     }
 
     # SSL Test
@@ -3479,6 +3486,24 @@ sub set_scan_items {
     return;
 }
 #######################################################################
+# Compare dotted release strings (e.g. 2.6.1 vs 2.6.0). Returns -1, 0, or 1.
+sub nikto_version_compare {
+    my ($a, $b) = @_;
+    my @a = split(/\./, $a);
+    my @b = split(/\./, $b);
+    my $len = @a > @b ? scalar(@a) : scalar(@b);
+    for (my $i = 0 ; $i < $len ; $i++) {
+        my $pa = ($i < @a) ? $a[$i] : 0;
+        my $pb = ($i < @b) ? $b[$i] : 0;
+        $pa = int($pa) if $pa =~ /^\d+$/;
+        $pb = int($pb) if $pb =~ /^\d+$/;
+        return 1  if $pa > $pb;
+        return -1 if $pa < $pb;
+    }
+    return 0;
+}
+
+#######################################################################
 # Check for updates to the program
 # Expects response like:
 # { "products": { "nikto": { "version": "2.6.0", "epoch": 1737935000 } } }
@@ -3558,11 +3583,18 @@ sub check_updates {
     # Extract remote version and epoch
     my $remote_version = $json_data->{'products'}->{'nikto'}->{'version'} || '';
     my $remote_epoch   = $json_data->{'products'}->{'nikto'}->{'epoch'}   || 0;
+    my $local_version  = $VARIABLES{'version'}                          || '';
+    my $ver_cmp        = 0;
+    if ($remote_version ne '' && $local_version ne '') {
+        $ver_cmp = nikto_version_compare($local_version, $remote_version);
+    }
 
-    # Compare epoch to manifest epoch
-    # If remote epoch is greater OR remote version is greater:
-    if ($remote_epoch > $epoch
-        || ($remote_version ne '' && $remote_version ne $VARIABLES{'version'})) {
+    # Local is same or newer than published (timestamp and/or version, e.g. pre-rel)
+    return if ($remote_epoch > 0 && $epoch >= $remote_epoch);
+    return if ($ver_cmp > 0);
+
+    # Published release is newer by epoch or version
+    if ($remote_epoch > $epoch || $ver_cmp < 0) {
         my $defer = $VARIABLES{'deferout'};
         $VARIABLES{'deferout'} = 0;
 
@@ -3895,7 +3927,7 @@ sub path_matcher {
                 if ($file =~ $check->{pattern}) {
                     my @vars = ref($check->{var}) eq 'ARRAY' ? @{ $check->{var} } : ($check->{var});
                     foreach my $var (@vars) {
-                        if ($VARIABLES{$var} !~ /$file/i) {
+                        if (index(lc($VARIABLES{$var}), lc($file)) < 0) {
                             $VARIABLES{$var} .= " $raw";
                         }
                     }
@@ -3936,7 +3968,7 @@ sub path_matcher {
                 if ($dir =~ $check->{pattern}) {
                     my @vars = ref($check->{var}) eq 'ARRAY' ? @{ $check->{var} } : ($check->{var});
                     foreach my $var (@vars) {
-                        if ($VARIABLES{$var} !~ /$dir/i) {
+                        if (index(lc($VARIABLES{$var}), lc($dir)) < 0) {
                             $VARIABLES{$var} .= " $dir";
                         }
                     }
@@ -4547,6 +4579,7 @@ sub usage {
        -nointeractive     Disables interactive features
        -nolookup          Disables DNS lookups
        -nossl             Disables the use of SSL
+       -nosslkeepalive    Disable TLS connection reuse (keep-alive on by default)
        -noslash           Strip trailing slash from URL (e.g., '/admin/' to '/admin')
        -no404             Disables nikto attempting to guess a 404 page
        -Option            Over-ride an option in nikto.conf, can be issued multiple times

@@ -150,7 +150,7 @@ $PACKAGE='LW2';
     ## LW module manager stuff ##
 
     $LW_SSL_LIB          = 0;
-    $LW_SSL_KEEPALIVE    = 0;
+    $LW_SSL_KEEPALIVE    = 1;
     $LW_NONBLOCK_CONNECT = 1;
 
     $_SSL_LIBRARY = undef;
