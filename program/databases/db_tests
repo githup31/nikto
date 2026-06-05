@@ -2739,7 +2739,7 @@
 "002996","CWE-552","b","/bottom.html","GET","BODY:Topaz Prism","Topaz Prism appears to be running, try login with admin/admin.","",""
 "002997","CWE-552","b","/interchange/","GET","CODE:200","Interchange chat is installed. Look for a high-numbered port like 20xx to find it running.","",""
 "002998","CWE-552","b","/sca/menu.jsp","GET","BODY:Service Control Agent","Entrust GetAccess Service Control Agent is installed.","",""
-"002999","CWE-552","b","/","SEARCH","BODY:Length Required","WebDAV is installed.\n",";",""
+"002999","CWE-552","b","/","SEARCH","BODY:Length Required","WebDAV is installed.",";",""
 "003000","http://projects.webappsec.org/w/page/13246922/Directory%20Indexing","2","/icons/","GET","BODY:(?i)(?:index of \/|directory listing (?:of|for))","Directory indexing found.","",""
 "003001","http://projects.webappsec.org/w/page/13246922/Directory%20Indexing","2","/manual/images/","GET","BODY:(?i)(?:index of \/|directory listing (?:of|for))","Directory indexing found.","",""
 "003002","http://projects.webappsec.org/w/page/13246922/Directory%20Indexing","2","/com/","GET","BODY:(?i)(?:index of \/|directory listing (?:of|for))","Directory indexing found.","",""
