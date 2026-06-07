@@ -831,8 +831,6 @@ sub general_config {
     $NIKTO{'mutate_opts'}{'3'} = "Enumerate user names via Apache (/~user type requests)";
     $NIKTO{'mutate_opts'}{'4'} =
       "Enumerate user names via cgiwrap (/cgi-bin/cgiwrap/~user type requests)";
-    $NIKTO{'mutate_opts'}{'6'} =
-      "Attempt to guess directory names from the supplied dictionary file";
 
     ### CLI STUFF
     $CLI{'pause'} = $CLI{'html'} = $OUTPUT{'verbose'} = $CLI{'skiplookup'} =
@@ -1278,12 +1276,7 @@ sub general_config {
             $parameters = "enumerate";
             $parameters .= ",home"    if ($CLI{'mutate'} =~ /3/);
             $parameters .= ",cgiwrap" if ($CLI{'mutate'} =~ /4/);
-            $parameters .= ",dictionary:" . $CLI{'mutate-options'}
-              if (defined $CLI{'mutate-options'});
             $CLI{'plugins'} .= ';apacheusers(' . $parameters . ')';
-        }
-        if ($CLI{'mutate'} =~ /6/) {
-            $CLI{'plugins'} .= ';dictionary(dictionary:' . $CLI{'mutate-options'} . ')';
         }
         nprint(
             "- Mutate is deprecated, use -Plugins instead. The following option can be used in future: -Plugin $CLI{'plugins'}"
@@ -2099,24 +2092,6 @@ sub check_dbs {
                 if ($line !~ /^\@.+\=.+$/i) { nprint("\t+ ERROR: Invalid syntax: $line"); }
                 $ctr++;
             }
-            nprint("\t$ctr entries");
-        }
-        elsif ($file =~ /u?db_404_strings/ || $file =~ /u?db_dictionary/) {
-            my $ctr = 1;
-            my %STRINGS;
-            foreach $line (<$db_fh>) {
-                chomp($line);
-                $line =~ s/\#.*$//;
-                next if $line eq '';
-                my ($result, $bad) = validate_and_fix_regex($line, 1);
-                if ($bad) { nprint("\t+ ERROR: Invalid regex on line $ctr: \"$line\""); }
-                if (exists($STRINGS{$line})) {
-                    nprint("\t+ ERROR: Duplicate String: $line");
-                }
-                else { $STRINGS{$line} = 1; }
-                $ctr++;
-            }
-            $ctr--;
             nprint("\t$ctr entries");
         }
 
