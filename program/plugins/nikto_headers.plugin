@@ -602,9 +602,19 @@ sub nikto_headers {
     }
 
     #######################################################################
-    # Missing suggested headers
+    # Missing suggested headers (desktop Chrome unless -useragent set)
+    my %hdrs;
+    if (   !$CLI{'useragent'}
+        && defined($VARIABLES{'@USERAGENTS'})
+        && ref($VARIABLES{'@USERAGENTS'}) eq 'ARRAY'
+        && @{ $VARIABLES{'@USERAGENTS'} }) {
+        my $ua = $VARIABLES{'@USERAGENTS'}->[0];
+        $ua =~ s/^"//;
+        $ua =~ s/"$//;
+        $hdrs{'User-Agent'} = $ua;
+    }
     ($res, $content, $errors, $request, $response) =
-      nfetch($mark, '/', "GET", "", {}, {}, "Headers", "1.1");
+      nfetch($mark, '/', "GET", "", \%hdrs, {}, "Headers", "1.1");
 
     while (my ($header, $ref) = each %{ $VARIABLES->{'SUGGESTED_HEADERS'} }) {
         if (!exists $response->{$header}) {
