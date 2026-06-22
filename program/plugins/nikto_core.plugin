@@ -3117,17 +3117,19 @@ sub nfetch {
         $request{'whisker'}->{'data'} = $data;
     }
 
-    # Default an unobtrusive headers to help WAF evasion
-    $request{'whisker'}->{'Accept'} =
+    # Default unobtrusive headers to help WAF evasion.
+    # These must be top-level request keys; LW2::http_construct_headers
+    # skips the 'whisker' key, so nesting them there would never send them.
+    $request{'Accept'} =
       'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-    $request{'whisker'}->{'Accept-Language'}           = 'en-US,en;q=0.5';
-    $request{'whisker'}->{'Cache-Control'}             = 'max-age=0';
-    $request{'whisker'}->{'Connection'}                = 'keep-alive';
-    $request{'whisker'}->{'Upgrade-Insecure-Requests'} = '1';
-    $request{'whisker'}->{'Sec-Fetch-Dest'}            = 'document';
-    $request{'whisker'}->{'Sec-Fetch-Mode'}            = 'navigate';
-    $request{'whisker'}->{'Sec-Fetch-Site'}            = 'none';
-    $request{'whisker'}->{'Sec-Fetch-User'}            = '?1';
+    $request{'Accept-Language'}           = 'en-US,en;q=0.5';
+    $request{'Cache-Control'}             = 'max-age=0';
+    $request{'Connection'}                = 'keep-alive';
+    $request{'Upgrade-Insecure-Requests'} = '1';
+    $request{'Sec-Fetch-Dest'}            = 'document';
+    $request{'Sec-Fetch-Mode'}            = 'navigate';
+    $request{'Sec-Fetch-Site'}            = 'none';
+    $request{'Sec-Fetch-User'}            = '?1';
 
     # Check for extra HTTP headers
     if (ref($headers_send) eq "HASH") {
@@ -3165,9 +3167,9 @@ sub nfetch {
 
     LW2::http_fixup_request(\%request) unless ($flags->{'noclean'});
 
-    # Run pre hooks
+    # Run pre hooks (hooks mutate \%request / \%response in place)
     unless ($flags->{'noprefetch'}) {
-        (%$request, %$response) = run_hooks($mark, "prefetch", \%request, \%response);
+        run_hooks($mark, "prefetch", \%request, \%response);
     }
 
     if ($flags->{'force_close'}) {
@@ -3366,9 +3368,9 @@ sub nfetch {
         }
     }
 
-    # Run post hooks
+    # Run post hooks (hooks mutate \%request / \%response in place)
     unless ($flags->{'nopostfetch'}) {
-        ($request, %$response) = run_hooks($mark, "postfetch", \%request, \%response);
+        run_hooks($mark, "postfetch", \%request, \%response);
     }
 
     return $response{'whisker'}->{'code'}, $response{'whisker'}->{'data'},
