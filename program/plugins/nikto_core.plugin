@@ -3213,7 +3213,13 @@ sub nfetch {
     }
 
     # follow redirects
-    if ($CLI{'followredirects'} && ($response{'whisker'}->{'code'} =~ /^30[1278]/)) {
+    # Only follow when the server actually supplied a non-empty Location header;
+    # a 30x with a missing/empty Location is hostile/malformed and must not
+    # trigger a request to an undefined URI.
+    if (   $CLI{'followredirects'}
+        && ($response{'whisker'}->{'code'} =~ /^30[1278]/)
+        && defined $response{'location'}
+        && $response{'location'} ne '') {
         my $newlocation = $response{'location'};
         my $port        = $mark->{'port'};
 
