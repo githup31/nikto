@@ -4688,9 +4688,16 @@ sub add_vulnerability {
         $message .= ".";
     }
 
+    # Safely derive the requested URI. This is both stored in the result and
+    # used as the dedup key below, so the comparison and storage stay consistent.
+    my $req_uri = '/';
+    if (ref($response) eq 'HASH' && ref($response->{whisker}) eq 'HASH') {
+        $req_uri = $response->{whisker}->{uri_requested} || '/';
+    }
+
     # check to see if we've alerted already (can be from content search, etc.)
     foreach my $r (@RESULTS) {
-        if (   ($uri eq $r->{'uri'})
+        if (   ($req_uri eq $r->{'uri'})
             && ($message eq $r->{'message'})
             && ($method eq $r->{'method'})
             && (${ $r->{'mark'} }{'ident'} eq $mark->{'ident'})
@@ -4702,12 +4709,6 @@ sub add_vulnerability {
     my $result = "";
     if (defined $_[7]) {
         $result = $_[7]->{'whisker'}->{'data'};
-    }
-
-    # Safely derive the requested URI
-    my $req_uri = '/';
-    if (ref($response) eq 'HASH' && ref($response->{whisker}) eq 'HASH') {
-        $req_uri = $response->{whisker}->{uri_requested} || '/';
     }
 
     my $resulthash;
