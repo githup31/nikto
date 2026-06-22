@@ -3151,7 +3151,7 @@ sub nfetch {
     # Set auth
     if (my $realm = $mark->{'realms'}{'default'}) {
         if (length($realm->{'authtype'})) {
-            LW2::auth_set($realm->{'authtype'}, $request, $realm->{'id'}, $realm->{'password'});
+            LW2::auth_set($realm->{'authtype'}, \%request, $realm->{'id'}, $realm->{'password'});
         }
     }
 
@@ -3168,6 +3168,11 @@ sub nfetch {
     # Run pre hooks
     unless ($flags->{'noprefetch'}) {
         (%$request, %$response) = run_hooks($mark, "prefetch", \%request, \%response);
+    }
+
+    if ($flags->{'force_close'}) {
+        $request{'whisker'}->{'force_close'} = 1;
+        LW2::http_close(\%request);
     }
 
     # Do the request
@@ -3275,19 +3280,19 @@ sub nfetch {
                && !exists $mark->{'bannerchanged'}
                && ($$banner ne $response{'server'})
                && ($response{'server'} ne 'Microsoft-HTTPAPI/2.0')) {
-            $request->{'whisker'}->{'uri'} = "/"
-              if (   !defined $request->{'whisker'}->{'uri'}
-                  || $request->{'whisker'}->{'uri'} eq ""
-                  || $request->{'whisker'}->{'uri'} eq ".");
+            $request{'whisker'}->{'uri'} = "/"
+              if (   !defined $request{'whisker'}->{'uri'}
+                  || $request{'whisker'}->{'uri'} eq ""
+                  || $request{'whisker'}->{'uri'} eq ".");
             add_vulnerability($mark,
-                              $request->{'whisker'}->{'uri'}
+                              $request{'whisker'}->{'uri'}
                                 . ": Server banner changed from '$$banner' to '$response{server}'",
                               "999962",
                               "",
                               $method,
                               $uri,
-                              $request,
-                              $response
+                              \%request,
+                              \%response
                               );
             $mark->{'bannerchanged'} = 1;
         }

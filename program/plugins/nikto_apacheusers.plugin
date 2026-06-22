@@ -141,7 +141,7 @@ sub nikto_user_enum_apache_brute {
         }
         my ($res, $content, $errors, $request, $response) =
           nfetch($mark, $url . $text, "HEAD", "", "", "", "user_enum_apache: enumeration");
-        my $user = nikto_user_enum_apache_check($response, $text);
+        my $user = nikto_user_enum_apache_check($res, $text);
         if (defined $user && $user ne "") {
             push(@foundusers, $user);
         }
@@ -178,7 +178,7 @@ sub nikto_user_enum_apache_dictionary {
         if (($ctr % 500) == 0) { nprint("- User enumeration guess $ctr ($_)", "v", "apacheusers"); }
         my($res, $content, $errors, $request, $response) =
           nfetch($mark, $url . $_, "HEAD", "", "", "", "user_enum_apache: dictionary");
-        my $user = nikto_user_enum_apache_check($response, $_);
+        my $user = nikto_user_enum_apache_check($res, $_);
         if ($user) {
             push(@foundusers, $user);
         }
