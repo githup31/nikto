@@ -4704,13 +4704,19 @@ sub add_vulnerability {
         $result = $_[7]->{'whisker'}->{'data'};
     }
 
+    # Safely derive the requested URI
+    my $req_uri = '/';
+    if (ref($response) eq 'HASH' && ref($response->{whisker}) eq 'HASH') {
+        $req_uri = $response->{whisker}->{uri_requested} || '/';
+    }
+
     my $resulthash;
     %$resulthash = (mark     => $mark,
                     message  => $message,
                     nikto_id => $nikto_id,
                     refs     => $refs,
                     method   => $method,
-                    uri      => $response->{whisker}->{uri_requested} || '/',
+                    uri      => $req_uri,
                     result   => $result,
                     request  => $request,
                     response => $response,
