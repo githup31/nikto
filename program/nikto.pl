@@ -206,7 +206,7 @@ foreach my $mark (@MARKS) {
             nprint($line, $mode, $testid);
         }
     }
-    undef $VARIABLES{'defertxt'};
+    $VARIABLES{'defertxt'} = [];
 
     run_hooks($mark, "recon");
     run_hooks($mark, "scan");
@@ -283,7 +283,6 @@ sub config_init {
       if defined $VARIABLES{'configfile'} && $VARIABLES{'configfile'} ne "";
     push(@CF, File::Spec->catfile($NIKTODIR, "nikto.conf"))         if defined $NIKTODIR;
     push(@CF, File::Spec->catfile($NIKTODIR, "nikto.conf.default")) if defined $NIKTODIR;
-    push(@CF, "nikto.conf");
     push(@CF, File::Spec->catfile($home, "nikto.conf")) if defined $home;
 
     # Only check /etc/nikto.conf on non-Windows systems
