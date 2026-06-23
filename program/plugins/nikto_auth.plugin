@@ -31,9 +31,13 @@ sub nikto_auth_init {
 # Load up the database as soon as we can
 sub nikto_auth_load {
 
+    # Always reload the default-credential DB.
+    $REALMS = init_db("db_realms");
+
+    # If the user supplied credentials, try them first
     if (defined $CLI{'hostauth'}) {
-        use Text::ParseWords;
-        my @array = nested_quotewords(':', 0, $CLI{'hostauth'});
+        require Text::ParseWords;
+        my @array = Text::ParseWords::nested_quotewords(':', 0, $CLI{'hostauth'});
 
         if ((defined $array[0][0] && $array[0][0] ne "") || (defined $array[0][1] && $array[0][1] ne "")) {
 
@@ -45,9 +49,6 @@ sub nikto_auth_load {
                              };
             unshift(@{$REALMS}, $HOSTAUTH);
         }
-    }
-    else {
-        $REALMS = init_db("db_realms");
     }
 }
 
@@ -114,6 +115,7 @@ sub nikto_auth {
 
     my ($realm, $authtype) = split_auth_header($response->{'www-authenticate'});
     $authtype = 'basic' if (!defined $authtype || $authtype eq '');
+    $realm    = ''      if (!defined $realm);
 
     # did we already test this realm?
     if (exists $mark->{'realms'}{$realm} && exists $mark->{'realms'}{$realm}{'status'}) {
@@ -168,35 +170,32 @@ sub nikto_auth {
         if (   $response->{'whisker'}->{'code'} !~ /40[13]/
             && $response->{'whisker'}->{'code'} ne "500"
             && !defined $response->{'whisker'}->{'error'}) {
-            unless ($entry->{'checked'}) {
-                my $message;
-                my $ref;
-                if (($entry->{'message'} // '') eq "Credentials provided via CLI.") {
-                    $message =
-                      "Successfully authenticated to realm '$realm' with user-supplied credentials.";
-                }
-                elsif ($entry->{'id'} eq '' && $entry->{'password'} eq '') {
-                    $message =
-                      "Blank credentials found at $request->{'whisker'}->{uri}, $entry->{'realm'}: $entry->{'message'}.";
-                    $ref = "CWE-16";
-                }
-                else {
-                    $message = $request->{'whisker'}->{'uri'}
-                      . ": Default account found for '$realm' at (ID '$entry->{'id'}', PW '$entry->{'password'}'). $entry->{message}.";
-                    $ref = "CWE-16";
-                }
-
-                add_vulnerability($mark, $message, $entry->{'nikto_id'}, $ref, "GET",
-                                  $request->{'whisker'}->{'uri'},
-                                  $request, $response);
-
-                # Mark it successful
-                $success                            = 1;
-                $entry->{'checked'}                 = 1;
-                $mark->{'realms'}{$realm}{'status'} = 1;
-                $mark->{'realms'}{'default'}        = $mark->{'realms'}{$realm};
-                last;
+            my $message;
+            my $ref;
+            if (($entry->{'message'} // '') eq "Credentials provided via CLI.") {
+                $message =
+                  "Successfully authenticated to realm '$realm' with user-supplied credentials.";
             }
+            elsif ($entry->{'id'} eq '' && $entry->{'password'} eq '') {
+                $message =
+                  "Blank credentials found at $request->{'whisker'}->{uri}, $entry->{'realm'}: $entry->{'message'}.";
+                $ref = "CWE-16";
+            }
+            else {
+                $message = $request->{'whisker'}->{'uri'}
+                  . ": Default account found for '$realm' at (ID '$entry->{'id'}', PW '$entry->{'password'}'). $entry->{message}.";
+                $ref = "CWE-16";
+            }
+
+            add_vulnerability($mark, $message, $entry->{'nikto_id'}, $ref, "GET",
+                              $request->{'whisker'}->{'uri'},
+                              $request, $response);
+
+            # Mark it successful
+            $success                            = 1;
+            $mark->{'realms'}{$realm}{'status'} = 1;
+            $mark->{'realms'}{'default'}        = $mark->{'realms'}{$realm};
+            last;
         }
         else {
             # set this back
@@ -204,6 +203,11 @@ sub nikto_auth {
         }
     }
     LW2::auth_unset($request);
+
+    # Record that we've processed this realm even when nothing matched, so a
+    # later 401 for the same realm doesn't trigger a full re-test.
+    $mark->{'realms'}{$realm}{'status'} //= 0;
+
     if (!$success) {
         nprint("+ " . $request->{'whisker'}->{'uri'} . ": No creds found for realm '$realm'",
                "", ($mark->{'hostname'}, $mark->{'ip'}, $mark->{'displayname'}));
