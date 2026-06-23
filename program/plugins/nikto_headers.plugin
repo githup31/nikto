@@ -48,7 +48,7 @@ sub nikto_headers_postfetch {
       );
 
     # Check for interesting headers once per response
-    nikto_headers_check($mark, $response, 999986, $request);
+    nikto_headers_check($mark, $response, "000287", $request);
 
     # look for internal IPs
     foreach my $header (keys %$response) {
@@ -56,52 +56,58 @@ sub nikto_headers_postfetch {
           if exists $skip_headers{$header}
           || exists $HEADERS_FOUND{ $mark->{hostname} }{ $mark->{port} }{$header};
 
-        my $header_value = $response->{$header};
+        my $raw = $response->{$header};
+        my @values = (ref($raw) eq 'ARRAY') ? @$raw : ($raw);
 
-        # Do not check the Location header's path target for internal IPs
-        if ($header eq 'location') {
-            if ($header_value =~ /^\//) {
-                next;
+        foreach my $header_value (@values) {
+            next unless defined $header_value;
+
+            # Do not check the Location header's path target for internal IPs
+            if ($header eq 'location') {
+                if ($header_value =~ /^\//) {
+                    next;
+                }
+                else {
+                    my @uri_parts = LW2::uri_split($header_value);
+
+                    # reconstruct without path/query/fragment
+                    $header_value = $uri_parts[2];
+                }
+
+                # Is it what we scanned?
+                if (defined $header_value
+                    && (   $header_value eq $mark->{'ip'}
+                        || (defined $mark->{'vhost'}       && $header_value eq $mark->{'vhost'})
+                        || (defined $mark->{'hostname'}    && $header_value eq $mark->{'hostname'})
+                        || (defined $mark->{'displayname'} && $header_value eq $mark->{'displayname'}))
+                        ) {
+                    next;
+                }
+                next unless defined $header_value;
             }
-            else {
-                my @uri_parts = LW2::uri_split($header_value);
 
-                # reconstruct without path/query/fragment
-                $header_value = $uri_parts[2];
-            }
+            foreach my $ip (get_ips($header_value)) {
+                my ($valid, $internal, $loopback) = is_ip($ip);
+                if ($valid && !$loopback) {
+                    if ($ip ne $mark->{'ip'}) {
 
-            # Is it what we scanned?
-            if (defined $header_value
-                && (   $header_value eq $mark->{'ip'}
-                    || (defined $mark->{'vhost'}       && $header_value eq $mark->{'vhost'})
-                    || (defined $mark->{'hostname'}    && $header_value eq $mark->{'hostname'})
-                    || (defined $mark->{'displayname'} && $header_value eq $mark->{'displayname'}))
-                    ) {
-                next;
-            }
-        }
-
-        foreach my $ip (get_ips($header_value)) {
-            my ($valid, $internal, $loopback) = is_ip($ip);
-            if ($valid && !$loopback) {
-                if ($ip ne $mark->{'ip'}) {
-
-                    # is it an internal, or just different?
-                    my $msg;
-                    $msg .= $request->{'whisker'}{'uri'} . ": ";
-                    if ($internal) { $msg .= "RFC-1918 "; }
-                    $msg .= "IP address found in the '$header' header. The IP is \"$ip\".";
-                    add_vulnerability(
-                        $mark,
-                        $msg,
-                        "999979",
-                        "https://portswigger.net/kb/issues/00600300_private-ip-addresses-disclosed",
-                        $request->{'whisker'}->{'method'},
-                        $request->{'whisker'}->{'uri'},
-                        $request,
-                        $response
-                        );
-                    $HEADERS_FOUND{ $mark->{hostname} }{ $mark->{port} }{$header} = 1;
+                        # is it an internal, or just different?
+                        my $msg;
+                        $msg .= $request->{'whisker'}{'uri'} . ": ";
+                        if ($internal) { $msg .= "RFC-1918 "; }
+                        $msg .= "IP address found in the '$header' header. The IP is \"$ip\".";
+                        add_vulnerability(
+                            $mark,
+                            $msg,
+                            "999979",
+                            "https://portswigger.net/kb/issues/00600300_private-ip-addresses-disclosed",
+                            $request->{'whisker'}->{'method'},
+                            $request->{'whisker'}->{'uri'},
+                            $request,
+                            $response
+                            );
+                        $HEADERS_FOUND{ $mark->{hostname} }{ $mark->{port} }{$header} = 1;
+                    }
                 }
             }
         }
@@ -185,9 +191,10 @@ sub nikto_headers_postfetch {
             }
         }
         if ($found == 0) {
-            my $x = $response->{$header};
+            my $raw = $response->{$header};
+            my $x = (ref($raw) eq 'ARRAY') ? ($raw->[0] // '') : ($raw // '');
             $x =~ s/\s+.*$//;
-            $mark->{'components'}->{$x} = 1;
+            $mark->{'components'}->{$x} = 1 if $x ne '';
             my $values = report_multiheaders($response->{$header});
             my $vuln = $request->{'whisker'}{'uri'}
               . ": Uncommon header(s) '$header' found, with contents: $values.";
@@ -425,7 +432,7 @@ sub nikto_headers {
         my ($res, $content, $errors, $request, $response) =
           nfetch($mark, $uri, "GET", "", \%locheaders, \%locflags, "Headers", "1.0");
 
-        if (!$cl && ($response->{'content-location'} ne "")) {
+        if (!$cl && defined $response->{'content-location'} && ($response->{'content-location'} ne "")) {
             my @ips = get_ips($response->{'content-location'});
             my ($valid, $internal, $loopback) = is_ip($ips[0]);
             if (($ips[0] ne '') && ($ips[0] ne $mark->{'ip'})) {
@@ -444,7 +451,7 @@ sub nikto_headers {
             }
         }
 
-        if (!$l && ($response->{'location'} ne "")) {
+        if (!$l && defined $response->{'location'} && ($response->{'location'} ne "")) {
             my @ips = get_ips($response->{'location'});
             my ($valid, $internal, $loopback) = is_ip($ips[0]);
             if (($ips[0] ne '') && ($ips[0] ne $mark->{'ip'})) {
@@ -463,7 +470,7 @@ sub nikto_headers {
             }
         }
 
-        if (!$wa && ($response->{'www-authenticate'} ne "")) {
+        if (!$wa && defined $response->{'www-authenticate'} && ($response->{'www-authenticate'} ne "")) {
             my @ips = get_ips($response->{'www-authenticate'});
             my ($valid, $internal, $loopback) = is_ip($ips[0]);
             if (($ips[0] ne '') && ($ips[0] ne $mark->{'ip'})) {
@@ -482,7 +489,7 @@ sub nikto_headers {
             }
         }
 
-        if (!$rt && ($response->{'report-to'} ne "")) {
+        if (!$rt && defined $response->{'report-to'} && ($response->{'report-to'} ne "")) {
             my @bits = split("url\": \"", $response->{'report-to'});
             my $have = 0;
             my @urls;
@@ -521,7 +528,7 @@ sub nikto_headers {
     }
     $locheaders{'User-Agent'} = get_ua();
 
-    ($res, $content, $errors, $request, $response) =
+    my ($res, $content, $errors, $request, $response) =
       nfetch($mark, '.', "GET", "", \%locheaders, \%locflags, "Headers", "1.0");
 
     my @ips = get_ips($response->{'location'});
@@ -582,7 +589,7 @@ sub nikto_headers {
         delete $locheaders{$_};
     }
     $locheaders{'User-Agent'} = get_ua();
-    $locheaders{'Nikto'}      = "\\x1f";
+    $locheaders{'Nikto'}      = "\x1f";
 
     ($res, $content, $errors, $request, $response) =
       nfetch($mark, '/', "GET", "", \%locheaders, \%locflags, "Headers", "1.0");
