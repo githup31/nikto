@@ -198,6 +198,9 @@ $PACKAGE='LW2';
         if ($@) { $LW_NONBLOCK_CONNECT = 0; }
     }
     else {
+        # Windows: Perl often surfaces WSAEWOULDBLOCK as a string, not 10035,
+        # so non-blocking connect completion via select() fails. Use blocking TCP.
+        $LW_NONBLOCK_CONNECT = 0;
 
         # taken from Winsock2.h
         *EINPROGRESS = sub { 10036 };

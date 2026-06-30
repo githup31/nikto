@@ -2437,7 +2437,7 @@ sub load_plugins {
                 $name   = $torun_plugin;
                 $suffix = "";
             }
-            if ($plugin->{'name'} =~ /$name/i) {
+            if ($plugin->{'name'} =~ /\Q$name\E/i) {
                 $plugin->{'run'} = 1;
 
                 # Create parameters
